@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Mathma Nagar T‑Shirt Inventory</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:Arial,sans-serif;margin:0;padding:0;background:#f4f4f4;overflow-x:hidden}
+
+.login-container{display:flex;justify-content:center;align-items:center;min-height:100vh;background:#ffffff;padding:20px}
+.login-box{background:white;padding:40px;border-radius:10px;box-shadow:0 4px 15px rgba(0,0,0,0.1);width:100%;max-width:420px;border:2px solid #667eea}
+.login-box h2{text-align:center;margin-bottom:10px;color:#333;font-size:24px}
+.login-box .app-tag{text-align:center;color:#667eea;font-size:14px;font-weight:bold;margin-bottom:20px;padding:8px;background:#f0f0f0;border-radius:5px}
+.login-box input{width:100%;padding:14px;margin:10px 0;border:2px solid #ddd;border-radius:5px;font-size:16px}
+.login-box button{width:100%;padding:14px;background:#667eea;color:white;border:none;border-radius:5px;cursor:pointer;font-size:16px;margin-top:10px;font-weight:bold}
+.login-box button:hover{background:#5568d3}
+.error-message{color:red;text-align:center;margin-top:10px;display:none;font-size:14px}
+
+.main-app{display:none;width:100%;max-width:100vw;overflow-x:hidden}
+.header{display:flex;justify-content:space-between;align-items:center;padding:12px 15px;background:#333;color:white;font-weight:bold;flex-wrap:nowrap;gap:10px}
+.header h1{margin:0;font-size:16px;line-height:1.2}
+.user-info{font-size:10px;color:#ddd;margin-top:3px}
+
+.switch-container{display:flex;align-items:center;gap:10px;flex-wrap:nowrap}
+.mode-box{display:flex;align-items:center;gap:8px}
+.action-buttons{display:flex;flex-direction:column;gap:6px;align-items:stretch}
+.action-buttons .btn{width:88px;padding:7px 10px;line-height:1.1}
+
+.switch{position:relative;display:inline-block;width:90px;height:36px;flex-shrink:0}
+.slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#999;transition:background-color 0.4s;border-radius:36px}
+.slider:before{position:absolute;content:"";height:28px;width:28px;background:white;transition:transform 0.4s;border-radius:50%;top:4px;left:4px}
+.slider.neutral{background:#999}
+.slider.neutral:before{transform:translateX(27px)}
+.slider.out{background:#dc3545}
+.slider.out:before{transform:translateX(0)}
+.slider.in{background:#28a745}
+.slider.in:before{transform:translateX(54px)}
+.switch-label{font-size:11px;font-weight:bold;min-width:45px}
+
+.btn{border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:bold}
+.logout-btn{background:#dc3545;color:white}
+.logout-btn:hover{background:#c82333}
+.refresh-btn{background:#17a2b8;color:white}
+.refresh-btn:hover{background:#138496}
+.refresh-btn:disabled{background:#7aaeb7;cursor:not-allowed}
+
+.warning-banner{background:#fff3cd;color:#856404;padding:12px;margin:10px;border-radius:10px;border-left:4px solid #ffc107;font-weight:bold;text-align:center;display:none;font-size:13px}
+.current-stock-display{background:#d1ecf1;color:#0c5460;padding:12px;margin:10px;border-radius:10px;border-left:4px solid #17a2b8;font-weight:bold;text-align:center}
+.stock-title{font-size:13px;margin-bottom:5px}
+.stock-numbers{font-size:16px;color:#155724}
+.action-display{margin:10px;padding:10px;background:#eee;text-align:center;font-weight:bold;font-size:13px;display:none;border-radius:10px}
+
+.section{padding:12px;background:#fff;margin:10px;border-radius:10px;box-shadow:0 2px 4px rgba(0,0,0,0.1)}
+.section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.section-header h3{margin:0;font-size:15px}
+.add-all-btn{padding:8px 14px;background:#007bff;color:white;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold}
+.add-all-btn:hover{background:#0056b3}
+.add-all-btn:disabled{background:#ccc;cursor:not-allowed}
+
+.size-row,.kids-scroll{display:flex;overflow-x:auto;gap:10px;padding:10px 0;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+.size-item{flex:none;display:flex;flex-direction:column;align-items:center;gap:6px}
+.size-btn,.kids-box{width:55px;height:55px;background:#999;color:white;border:none;border-radius:8px;cursor:pointer;transition:all 0.2s ease;text-align:center;font-weight:bold;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.size-btn.mode-in,.kids-box.mode-in{background:#28a745}
+.size-btn.mode-out,.kids-box.mode-out{background:#dc3545}
+.size-btn:active,.kids-box:active{transform:scale(0.97)}
+.qty-input{width:55px;padding:6px;border:2px solid #ccc;border-radius:6px;text-align:center;font-size:14px;flex-shrink:0}
+.qty-input:focus{outline:none;border-color:#007bff}
+
+/* Price input per size */
+.price-wrap{display:flex;align-items:center;gap:4px}
+.price-prefix{font-size:12px;color:#444;font-weight:bold}
+.price-input{
+  width:72px;
+  padding:6px;
+  border:2px solid #ddd;
+  border-radius:6px;
+  text-align:center;
+  font-size:13px;
+}
+.price-input:focus{outline:none;border-color:#6f42c1}
+
+.cart-items{padding:12px;background:#fff;margin:10px;border-radius:10px;box-shadow:0 2px 4px rgba(0,0,0,0.1)}
+.cart-items h3{font-size:15px;margin-top:0}
+.cart-items ul{list-style:none;padding:0;margin:0;max-height:320px;overflow-y:auto}
+.cart-items li{padding:10px;border:1px solid #eee;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-radius:10px;gap:10px}
+.cart-items li.in{background:#e9f7ef;border-color:#c9ead6}
+.cart-items li.out{background:#fdecea;border-color:#f5c2c7}
+.cart-item-info{flex:1;font-size:13px}
+.remove-item{background:#dc3545;color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:11px;flex-shrink:0}
+
+.cart-total{margin-top:10px;padding:12px;border-radius:10px;background:#f6f7f9;font-weight:bold;display:flex;justify-content:space-between;gap:10px;border:1px solid #eee}
+
+.reason-bar{margin:10px;padding:10px;background:#fff;border-radius:10px;box-shadow:0 2px 4px rgba(0,0,0,0.1);display:none}
+.reason-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.reason-label{font-weight:bold;font-size:13px;color:#333}
+.reason-select{padding:10px;border:2px solid #ddd;border-radius:8px;min-width:220px;font-size:14px}
+.reason-help{font-size:12px;color:#666}
+
+.submit-btn{display:block;width:calc(100% - 20px);max-width:520px;margin:10px auto 20px auto;padding:14px;border:none;border-radius:10px;font-size:16px;cursor:pointer;transition:all 0.2s ease;font-weight:bold;color:white}
+.submit-btn:active:not(:disabled){transform:scale(0.98)}
+.submit-btn:disabled{background:#ccc;cursor:not-allowed}
+
+.loading-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:9999;align-items:center;justify-content:center}
+.loading-box{background:#fff;color:#333;padding:18px 22px;border-radius:12px;font-weight:bold;min-width:240px;box-shadow:0 10px 30px rgba(0,0,0,.25);text-align:center}
+.loading-sub{font-weight:normal;font-size:12px;color:#666;margin-top:6px}
+</style>
+</head>
+
+<body>
+<div class="loading-overlay" id="loading">
+  <div class="loading-box">
+    Processing...
+    <div class="loading-sub" id="loading-sub">Please wait</div>
+  </div>
+</div>
+
+<div class="login-container" id="login-page">
+  <div class="login-box">
+    <h2>Mathma Nagar Login</h2>
+    <div class="app-tag">🏢 Mathma Nagar Access Only</div>
+    <form id="login-form">
+      <input type="text" id="login-username" placeholder="Username" required />
+      <input type="password" id="login-password" placeholder="Password" required />
+      <button type="submit">Login</button>
+      <div class="error-message" id="error-message"></div>
+    </form>
+  </div>
+</div>
+
+<div class="main-app" id="main-app">
+  <div class="header">
+    <div>
+      <h1></h1>
+      <div class="user-info" id="user-info"></div>
+    </div>
+
+    <div class="switch-container">
+      <div class="mode-box">
+        <span class="switch-label" id="switch-label">SELECT MODE</span>
+        <label class="switch">
+          <span class="slider neutral" id="slider" onclick="cycleSwitch()"></span>
+        </label>
+      </div>
+
+      <div class="action-buttons">
+        <button class="btn refresh-btn" id="refresh-btn" onclick="manualRefreshWithCooldown()">Refresh</button>
+        <button class="btn logout-btn" onclick="logout()">Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="warning-banner" id="warning-banner">
+    ⚠️ Please select IN or OUT mode using the toggle switch above
+  </div>
+
+  <div class="current-stock-display">
+    <div class="stock-title">📦 CURRENT MATHMA NAGAR STOCK</div>
+    <div class="stock-numbers" id="stock-info">Loading...</div>
+    <div style="margin-top:8px;font-size:12px;color:#0c5460;font-weight:bold" id="refresh-hint"></div>
+  </div>
+
+  <div class="action-display" id="action-display"></div>
+
+  <div class="section">
+    <div class="section-header">
+      <h3>Kids Sizes (26-32)</h3>
+      <button class="add-all-btn" id="add-kids-btn" onclick="addKidsItems()" disabled>Add to Cart</button>
+    </div>
+    <div class="kids-scroll" id="kids-scroll"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <h3>Adults Sizes (34-46)</h3>
+      <button class="add-all-btn" id="add-adults-btn" onclick="addAdultItems()" disabled>Add to Cart</button>
+    </div>
+    <div class="size-row" id="adult-sizes"></div>
+  </div>
+
+  <div class="cart-items">
+    <h3>🛒 Cart</h3>
+    <ul id="cart-list"></ul>
+    <div class="cart-total">
+      <div>Total Amount</div>
+      <div id="cart-total-rupees">₹0</div>
+    </div>
+  </div>
+
+  <div class="reason-bar" id="reason-bar">
+    <div class="reason-row">
+      <div class="reason-label">Reason</div>
+      <select class="reason-select" id="reason-select"></select>
+      <div class="reason-help" id="reason-help"></div>
+    </div>
+  </div>
+
+  <button class="submit-btn" id="submit-btn" onclick="submitCart()" disabled>Select IN/OUT Mode First</button>
+</div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script>
+/* Sizes */
+const adultsSizes = ['34','36','38','40','42','44','46'];
+const kidsSizes   = ['26','28','30','32'];
+
+/* Supabase */
+const SUPABASE_URL = 'https://efjgjkutogmxtlrgpwsq.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmamdqa3V0b2dteHRscmdwd3NxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1MDg1NDUsImV4cCI6MjA4MTA4NDU0NX0.WduxGQVg_4zv-BY6uoEhYOcyMJUYVfsOGD6Pq9fL0NE'; // paste locally
+const ORG = 'Mathma Nagar';
+const ALLOWED_ORGANIZATION = 'Mathma Nagar';
+
+/* Refresh lock */
+const REFRESH_COOLDOWN_MS = 30 * 60 * 1000;
+const REFRESH_KEY = 'mathma_refresh_lock_v3_last_ts';
+
+/* Price (UI only) */
+const PRICE_KEY = 'mathma_ui_price_v1'; // stored locally only (not in DB)
+const MIN_PRICE = 200;
+const MAX_PRICE = 500;
+
+/* State */
+let currentAction = null;
+let switchState = 'neutral';
+let cart = [];
+let currentUser = null;
+
+const { createClient } = supabase;
+const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* Loading overlay */
+function showLoading(sub='Please wait'){document.getElementById('loading-sub').textContent=sub;document.getElementById('loading').style.display='flex';}
+function hideLoading(){document.getElementById('loading').style.display='none';}
+async function withLoading(fn, subText='Contacting server...'){
+  showLoading(subText);
+  const minDelay = new Promise(res=>setTimeout(res,2000));
+  try{await Promise.all([fn(),minDelay]);}
+  finally{hideLoading();}
+}
+
+/* Refresh cooldown helpers */
+function getLastRefreshTs(){return parseInt(localStorage.getItem(REFRESH_KEY)||'0',10);}
+function setLastRefreshTs(ts){localStorage.setItem(REFRESH_KEY,String(ts));}
+function msUntilNextRefresh(){
+  const last=getLastRefreshTs();const now=Date.now();
+  return Math.max(0,REFRESH_COOLDOWN_MS-(now-last));
+}
+function formatRemaining(ms){return `${Math.ceil(ms/60000)} min`;}
+function updateRefreshHintAndButton(){
+  const btn=document.getElementById('refresh-btn');
+  const hint=document.getElementById('refresh-hint');
+  const remain=msUntilNextRefresh();
+  if(remain<=0){btn.disabled=false;hint.textContent='Refresh available now.';}
+  else{btn.disabled=true;hint.textContent=`Refresh locked. Next refresh in ~${formatRemaining(remain)}.`;}
+}
+setInterval(updateRefreshHintAndButton,10000);
+
+/* Reason bar */
+const reasonBar = document.getElementById('reason-bar');
+const reasonSelect = document.getElementById('reason-select');
+const reasonHelp = document.getElementById('reason-help');
+
+const REASONS_OUT = [{value:'Distribute', label:'Distribute'}];
+const REASONS_IN  = [{value:'Warehouse', label:'Warehouse'},{value:'Exchange', label:'Exchange'}];
+
+function setReasonOptionsForMode(mode){
+  reasonSelect.innerHTML='';
+  let list=[];
+  if(mode==='out') list=REASONS_OUT;
+  if(mode==='in')  list=REASONS_IN;
+
+  list.forEach(x=>{
+    const opt=document.createElement('option');
+    opt.value=x.value; opt.textContent=x.label;
+    reasonSelect.appendChild(opt);
+  });
+
+  reasonBar.style.display = mode ? 'block' : 'none';
+  reasonHelp.textContent = mode==='out' ? 'Reason for Stock OUT only.' : (mode==='in' ? 'Reason for Stock IN only.' : '');
+}
+
+/* Price helpers (UI only, stored locally for convenience) */
+function randInt(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
+function getAllSizeKeys(){
+  // one price per (category,size)
+  const keys=[];
+  kidsSizes.forEach(s=>keys.push(`kids:${s}`));
+  adultsSizes.forEach(s=>keys.push(`adults:${s}`));
+  return keys;
+}
+function loadPrices(){
+  try{
+    const raw = localStorage.getItem(PRICE_KEY);
+    const obj = raw ? JSON.parse(raw) : null;
+    if(obj && typeof obj === 'object') return obj;
+  }catch(e){}
+  return {};
+}
+function savePrices(prices){
+  localStorage.setItem(PRICE_KEY, JSON.stringify(prices));
+}
+function ensurePrices(){
+  const prices = loadPrices();
+  let changed = false;
+  for (const k of getAllSizeKeys()){
+    if (typeof prices[k] !== 'number' || !Number.isFinite(prices[k])) {
+      prices[k] = randInt(MIN_PRICE, MAX_PRICE);
+      changed = true;
+    }
+  }
+  if (changed) savePrices(prices);
+  return prices;
+}
+function getPriceFor(category,size){
+  const prices = ensurePrices();
+  return prices[`${category}:${size}`] ?? randInt(MIN_PRICE, MAX_PRICE);
+}
+function setPriceFor(category,size,value){
+  const v = parseInt(value, 10);
+  if (!Number.isFinite(v) || v < MIN_PRICE || v > MAX_PRICE) {
+    throw new Error(`Price must be between ₹${MIN_PRICE} and ₹${MAX_PRICE}`);
+  }
+  const prices = ensurePrices();
+  prices[`${category}:${size}`] = v;
+  savePrices(prices);
+}
+
+/* Login */
+document.getElementById('login-form').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const username=document.getElementById('login-username').value.trim();
+  const password=document.getElementById('login-password').value.trim();
+  const errorMsg=document.getElementById('error-message');
+
+  try{
+    await withLoading(async ()=>{
+      const { data, error } = await client
+        .from('users')
+        .select('id,username,password,name,organization')
+        .eq('username', username)
+        .eq('password', password)
+        .eq('organization', ALLOWED_ORGANIZATION)
+        .maybeSingle();
+
+      if(error) throw error;
+      if(!data){
+        errorMsg.textContent='Invalid credentials';
+        errorMsg.style.display='block';
+        return;
+      }
+      currentUser=data;
+      errorMsg.style.display='none';
+      showMainApp();
+    },'Checking login...');
+  }catch(err){
+    console.error(err);
+    errorMsg.textContent='Login failed';
+    errorMsg.style.display='block';
+  }
+});
+
+async function showMainApp(){
+  document.getElementById('login-page').style.display='none';
+  document.getElementById('main-app').style.display='block';
+  document.getElementById('user-info').textContent = `${currentUser.name} (${currentUser.organization})`;
+  document.getElementById('warning-banner').style.display='block';
+
+  ensurePrices();
+  updateRefreshHintAndButton();
+  await withLoading(loadOrgTotals,'Loading current stock...');
+}
+
+/* Stock totals */
+async function loadOrgTotals(){
+  const { data, error } = await client
+    .from('stock')
+    .select('category,quantity')
+    .eq('organization', ORG);
+
+  if(error) throw error;
+
+  let totalKids=0, totalAdults=0;
+  (data||[]).forEach(item=>{
+    if(item.category==='kids') totalKids += item.quantity;
+    if(item.category==='adults') totalAdults += item.quantity;
+  });
+
+  const grandTotal = totalKids + totalAdults;
+  document.getElementById('stock-info').innerHTML =
+    `Kids: <strong>${totalKids}</strong> | Adults: <strong>${totalAdults}</strong> | Total: <strong>${grandTotal}</strong>`;
+}
+
+/* Manual refresh with lock */
+async function manualRefreshWithCooldown(){
+  const remain=msUntilNextRefresh();
+  if(remain>0){
+    alert(`Refresh allowed only once every 30 minutes.\nNext refresh in ~${formatRemaining(remain)}.`);
+    updateRefreshHintAndButton();
+    return;
+  }
+
+  setLastRefreshTs(Date.now());
+  updateRefreshHintAndButton();
+
+  try{
+    await withLoading(loadOrgTotals,'Refreshing stock...');
+  }catch(err){
+    console.error(err);
+    alert('Refresh failed: ' + (err.message || 'Error'));
+    setLastRefreshTs(0);
+    updateRefreshHintAndButton();
+  }
+}
+
+/* Logout */
+function logout(){
+  currentUser=null;
+  currentAction=null;
+  switchState='neutral';
+  cart=[];
+
+  document.getElementById('login-page').style.display='flex';
+  document.getElementById('main-app').style.display='none';
+  document.getElementById('login-username').value='';
+  document.getElementById('login-password').value='';
+
+  resetSwitch();
+  updateSizeButtonColors();
+  updateCart();
+}
+
+/* Mode switch */
+function updateSizeButtonColors(){
+  const allSizeButtons=document.querySelectorAll('.size-btn, .kids-box');
+  allSizeButtons.forEach(btn=>{
+    btn.classList.remove('mode-in','mode-out');
+    if(currentAction==='in') btn.classList.add('mode-in');
+    if(currentAction==='out') btn.classList.add('mode-out');
+  });
+}
+
+function cycleSwitch(){
+  const slider=document.getElementById('slider');
+  const label=document.getElementById('switch-label');
+  const actionDisplay=document.getElementById('action-display');
+  const warningBanner=document.getElementById('warning-banner');
+  const submitBtn=document.getElementById('submit-btn');
+  const addKidsBtn=document.getElementById('add-kids-btn');
+  const addAdultsBtn=document.getElementById('add-adults-btn');
+
+  if(switchState==='neutral'){
+    switchState='out';
+    currentAction='out';
+    slider.className='slider out';
+    label.textContent='OUT';
+    submitBtn.textContent='Submit - Stock OUT';
+    submitBtn.style.backgroundColor='#dc3545';
+    actionDisplay.textContent='📤 STOCK OUT (Mathma Nagar)';
+    actionDisplay.style.backgroundColor='#fdecea';
+    actionDisplay.style.display='block';
+    warningBanner.style.display='none';
+    submitBtn.disabled=false;
+    addKidsBtn.disabled=false;
+    addAdultsBtn.disabled=false;
+    setReasonOptionsForMode('out');
+  }else if(switchState==='out'){
+    switchState='in';
+    currentAction='in';
+    slider.className='slider in';
+    label.textContent='IN';
+    submitBtn.textContent='Submit - Stock IN';
+    submitBtn.style.backgroundColor='#28a745';
+    actionDisplay.textContent='📥 STOCK IN';
+    actionDisplay.style.backgroundColor='#e9f7ef';
+    actionDisplay.style.display='block';
+    warningBanner.style.display='none';
+    submitBtn.disabled=false;
+    addKidsBtn.disabled=false;
+    addAdultsBtn.disabled=false;
+    setReasonOptionsForMode('in');
+  }else{
+    resetSwitch();
+  }
+  updateSizeButtonColors();
+}
+
+function resetSwitch(){
+  switchState='neutral';
+  currentAction=null;
+  document.getElementById('slider').className='slider neutral';
+  document.getElementById('switch-label').textContent='SELECT MODE';
+  document.getElementById('action-display').style.display='none';
+  document.getElementById('warning-banner').style.display='block';
+
+  const submitBtn=document.getElementById('submit-btn');
+  submitBtn.disabled=true;
+  submitBtn.textContent='Select IN/OUT Mode First';
+  submitBtn.style.backgroundColor='#ccc';
+
+  document.getElementById('add-kids-btn').disabled=true;
+  document.getElementById('add-adults-btn').disabled=true;
+
+  reasonBar.style.display='none';
+  reasonSelect.innerHTML='';
+  reasonHelp.textContent='';
+}
+
+/* Build size rows (with qty + editable price input per size) */
+function createSizeButtons(containerId,sizes,isAdult=true){
+  const container=document.getElementById(containerId);
+  const category = isAdult ? 'adults' : 'kids';
+
+  sizes.forEach(size=>{
+    const sizeItem=document.createElement('div');
+    sizeItem.className='size-item';
+
+    const btn=document.createElement('button');
+    btn.className=isAdult?'size-btn':'kids-box';
+    btn.textContent=size;
+
+    const qty=document.createElement('input');
+    qty.type='number';
+    qty.className='qty-input';
+    qty.placeholder='Qty';
+    qty.min='0';
+    qty.value='0';
+    qty.dataset.size=size;
+    qty.dataset.category=category;
+
+    const priceWrap = document.createElement('div');
+    priceWrap.className = 'price-wrap';
+
+    const prefix = document.createElement('span');
+    prefix.className = 'price-prefix';
+    prefix.textContent = '₹';
+
+    const price=document.createElement('input');
+    price.type='number';
+    price.className='price-input';
+    price.min=String(MIN_PRICE);
+    price.max=String(MAX_PRICE);
+    price.value=String(getPriceFor(category, size));
+    price.title = `Price for ${category.toUpperCase()} size ${size} (₹${MIN_PRICE}–₹${MAX_PRICE})`;
+    price.dataset.size=size;
+    price.dataset.category=category;
+
+    price.addEventListener('change', () => {
+      try {
+        setPriceFor(category, size, price.value);
+        updateCart(); // refresh totals if already in cart
+      } catch (e) {
+        alert(e.message);
+        price.value = String(getPriceFor(category, size));
+      }
+    });
+
+    priceWrap.appendChild(prefix);
+    priceWrap.appendChild(price);
+
+    sizeItem.appendChild(btn);
+    sizeItem.appendChild(qty);
+    sizeItem.appendChild(priceWrap);
+    container.appendChild(sizeItem);
+  });
+}
+
+function addKidsItems(){ addItemsFrom('#kids-scroll .qty-input','kids'); }
+function addAdultItems(){ addItemsFrom('#adult-sizes .qty-input','adults'); }
+
+function addItemsFrom(selector,category){
+  if(!currentAction){alert('Please select IN or OUT mode first');return;}
+  const inputs=document.querySelectorAll(selector);
+  let added=0;
+
+  inputs.forEach(input=>{
+    const quantity=parseInt(input.value,10)||0;
+    if(quantity>0){
+      cart.push({category,size:input.dataset.size,quantity,action:currentAction});
+      input.value='0';
+      added++;
+    }
+  });
+
+  if(added===0) alert('Please enter quantity for at least one size');
+  updateCart();
+}
+
+function calcCartTotalRupees(){
+  return cart.reduce((sum,item)=>{
+    const unit = getPriceFor(item.category, item.size);
+    return sum + (unit * item.quantity);
+  },0);
+}
+
+function updateCart(){
+  const list=document.getElementById('cart-list');
+  list.innerHTML='';
+
+  if(cart.length===0){
+    list.innerHTML='<li style="text-align:center;color:#999;">Cart is empty</li>';
+    document.getElementById('cart-total-rupees').textContent='₹0';
+    return;
+  }
+
+  cart.forEach((item,index)=>{
+    const li=document.createElement('li');
+    li.className=item.action==='in'?'in':'out';
+
+    const unit = getPriceFor(item.category, item.size);
+    const lineTotal = unit * item.quantity;
+
+    li.innerHTML=`
+      <div class="cart-item-info">
+        <strong>${item.action.toUpperCase()}</strong> - ${item.category.toUpperCase()}<br>
+        Size: <strong>${item.size}</strong> | Qty: <strong>${item.quantity}</strong><br>
+        Price: ₹${unit} × ${item.quantity} = <strong>₹${lineTotal}</strong>
+      </div>
+      <button class="remove-item" onclick="removeFromCart(${index})">Remove</button>
+    `;
+    list.appendChild(li);
+  });
+
+  document.getElementById('cart-total-rupees').textContent=`₹${calcCartTotalRupees()}`;
+}
+
+function removeFromCart(index){
+  cart.splice(index,1);
+  updateCart();
+}
+
+/* Submit using RPC */
+async function submitCart(){
+  if(!currentAction){alert('Please select IN or OUT mode first');return;}
+  if(cart.length===0){alert('Cart is empty');return;}
+
+  const totalQty=cart.reduce((sum,x)=>sum+x.quantity,0);
+  const reason = reasonSelect.value || '';
+
+  if(currentAction==='out'){
+    if(reason !== 'Distribute'){ alert('Only "Distribute" is allowed for Stock OUT.'); return; }
+  }
+  if(currentAction==='in'){
+    if(!['Warehouse','Exchange'].includes(reason)){ alert('Select a valid IN reason (Warehouse / Exchange).'); return; }
+  }
+
+  const totalValue = calcCartTotalRupees();
+  const confirmText =
+    (currentAction==='in')
+      ? `Receive ${totalQty} items?\nReason: ${reason}\n\nTotal value (UI): ₹${totalValue}\n\nThis will INCREASE Mathma Nagar stock.`
+      : `Dispatch ${totalQty} items?\nReason: ${reason}\n\nTotal value (UI): ₹${totalValue}\n\nThis will DECREASE Mathma Nagar stock.`;
+
+  if(!confirm(confirmText)) return;
+
+  try{
+    await withLoading(async ()=>{
+      for(const item of cart){
+        if(currentAction==='in'){
+          const { error } = await client.rpc('upsert_warehouse_stock',{
+            p_organization: ORG,
+            p_category: item.category,
+            p_size: item.size,
+            p_quantity: item.quantity,
+            p_type: 'in',
+            p_user_name: currentUser.name,
+            p_reason: reason
+          });
+          if(error) throw error;
+        }else{
+          const { error } = await client.rpc('upsert_warehouse_stock',{
+            p_organization: ORG,
+            p_category: item.category,
+            p_size: item.size,
+            p_quantity: -item.quantity,
+            p_type: 'out',
+            p_user_name: currentUser.name,
+            p_reason: reason
+          });
+          if(error) throw error;
+        }
+      }
+    },'Submitting to database...');
+
+    cart=[];
+    updateCart();
+    await withLoading(loadOrgTotals,'Updating stock totals...');
+    alert(`✅ Success! ${totalQty} items processed.\nTotal value (UI): ₹${totalValue}`);
+  }catch(err){
+    console.error(err);
+    alert('Error: ' + (err.message || 'Failed'));
+  }
+}
+
+/* Init */
+createSizeButtons('adult-sizes',adultsSizes,true);
+createSizeButtons('kids-scroll',kidsSizes,false);
+updateCart();
+updateRefreshHintAndButton();
+</script>
+</body>
+</html>
+	
