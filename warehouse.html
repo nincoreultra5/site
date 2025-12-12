@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Warehouse T-Shirt Inventory</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; }
+
+/* Login Page Styles */
+.login-container { display: flex; justify-content: center; align-items: center; height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.login-box { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 100%; max-width: 400px; }
+.login-box h2 { text-align: center; margin-bottom: 10px; color: #333; }
+.login-box .app-tag { text-align: center; color: #667eea; font-size: 14px; font-weight: bold; margin-bottom: 20px; padding: 5px; background-color: #f0f0f0; border-radius: 5px; }
+.login-box input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+.login-box button { width: 100%; padding: 12px; background-color: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin-top: 10px; }
+.login-box button:hover { background-color: #5568d3; }
+.error-message { color: red; text-align: center; margin-top: 10px; display: none; }
+
+/* Main App Styles */
+.main-app { display: none; }
+.header { display: flex; justify-content: space-between; align-items: center; padding: 8px 20px; background-color: #333; color: white; font-weight: bold; }
+.header h1 { margin: 0; font-size: 18px; line-height: 1.2; }
+.user-info { font-size: 11px; color: #ddd; margin-top: 3px; }
+
+/* Toggle Switch Styles */
+.switch-container { display: flex; align-items: center; gap: 8px; }
+.switch { position: relative; display: inline-block; width: 70px; height: 32px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #dc3545; transition: .4s; border-radius: 32px; }
+.slider:before { position: absolute; content: ""; height: 24px; width: 24px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+input:checked + .slider { background-color: #28a745; }
+input:checked + .slider:before { transform: translateX(38px); }
+.switch-label { font-size: 12px; font-weight: bold; min-width: 35px; }
+.logout-btn { padding: 5px 12px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; margin-left: 10px; }
+.logout-btn:hover { background-color: #c82333; }
+
+/* Refresh button */
+.refresh-btn { padding: 5px 10px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; }
+.refresh-btn:hover { background-color: #138496; }
+
+/* Warning banner (between header and totals) */
+.warning-banner {
+background-color: #fff3cd;
+color: #856404;
+padding: 10px;
+margin: 10px;
+border-radius: 8px;
+border-left: 4px solid #ffc107;
+font-weight: bold;
+text-align: center;
+display: none;
+}
+
+/* Totals Display */
+.totals-display { display: flex; justify-content: space-around; padding: 10px; background-color: #fff; margin: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.total-box { text-align: center; padding: 8px 15px; background-color: #f8f9fa; border-radius: 6px; border: 2px solid #dee2e6; }
+.total-box.grand { background-color: #e7f3ff; border-color: #007bff; }
+.total-label { font-size: 11px; color: #6c757d; font-weight: bold; margin-bottom: 3px; }
+.total-value { font-size: 20px; font-weight: bold; color: #333; }
+.total-box.grand .total-value { color: #007bff; }
+
+.action-display { margin: 10px; padding: 10px; text-align: center; font-weight: bold; font-size: 14px; display: none; border-radius: 8px; }
+
+.section { padding: 15px; background-color: #fff; margin: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.add-all-btn { padding: 6px 12px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.add-all-btn:hover { background-color: #0056b3; }
+
+.size-row, .kids-scroll { display: flex; overflow-x: auto; gap: 10px; padding: 10px 0; scrollbar-width: thin; }
+.size-item { flex: none; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.size-btn, .kids-box { width: 55px; height: 55px; background-color: #999; color: white; border: none; border-radius: 6px; cursor: pointer; transition: all 0.3s ease; text-align: center; font-weight: bold; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+.qty-input { width: 55px; padding: 4px; border: 2px solid #ccc; border-radius: 4px; text-align: center; font-size: 12px; }
+.qty-input:focus { outline: none; border-color: #007bff; }
+
+/* Mode colors (NEW) */
+.mode-in .size-btn, .mode-in .kids-box { background-color: #28a745; }
+.mode-out .size-btn, .mode-out .kids-box { background-color: #dc3545; }
+
+.location-section, .reason-section { padding: 15px; background-color: #fff; margin: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.location-section select, .reason-section select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-top: 10px; }
+.reason-section { display: none; }
+
+.submit-btn { display: block; width: 80%; margin: 20px auto; padding: 12px; background-color: #28a745; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; transition: all 0.3s ease; }
+.submit-btn:hover { background-color: #218838; transform: scale(1.02); }
+
+.cart-items, .bottom-list { padding: 15px; background-color: #fff; margin: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.cart-items ul, .bottom-list ul { list-style: none; padding: 0; max-height: 300px; overflow-y: auto; }
+.cart-items li, .bottom-list li { padding: 8px; border-bottom: 1px solid #eee; }
+.cart-items li { display: flex; justify-content: space-between; align-items: center; background-color: #f9f9f9; margin-bottom: 5px; border-radius: 4px; }
+.cart-item-info { flex: 1; }
+.remove-item { background-color: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+.remove-item:hover { background-color: #c82333; }
+.cart-summary { margin-top: 10px; padding: 10px; background-color: #e9ecef; border-radius: 4px; font-weight: bold; }
+</style>
+</head>
+<body>
+<!-- Login Page -->
+<div class="login-container" id="login-page">
+<div class="login-box">
+<h2>Warehouse Login</h2>
+<div class="app-tag">🏭 Warehouse Access Only</div>
+<form id="login-form">
+<input type="text" id="login-username" placeholder="Username" required>
+<input type="password" id="login-password" placeholder="Password" required>
+<button type="submit">Login</button>
+<div class="error-message" id="error-message"></div>
+</form>
+</div>
+</div>
+
+<!-- Main Application -->
+<div class="main-app" id="main-app">
+<div class="header">
+<div>
+<h1>Warehouse Stock</h1>
+<div class="user-info" id="user-info"></div>
+</div>
+<div class="switch-container">
+<span class="switch-label" id="switch-label">OUT</span>
+<label class="switch">
+<input type="checkbox" id="action-switch" onchange="toggleAction()">
+<span class="slider"></span>
+</label>
+
+<button class="refresh-btn" id="refresh-btn" onclick="manualRefresh()">Refresh</button>
+
+<button class="logout-btn" onclick="logout()">Logout</button>
+</div>
+</div>
+
+<!-- NEW: Warning banner -->
+<div class="warning-banner" id="warning-banner">
+⚠️ Please select IN or OUT mode using the toggle switch above
+</div>
+
+<!-- Totals Display (LIVE from DB, not cart) -->
+<div class="totals-display">
+<div class="total-box">
+<div class="total-label">WAREHOUSE KIDS LEFT</div>
+<div class="total-value" id="total-kids">0</div>
+</div>
+<div class="total-box">
+<div class="total-label">WAREHOUSE ADULTS LEFT</div>
+<div class="total-value" id="total-adults">0</div>
+</div>
+<div class="total-box grand">
+<div class="total-label">TOTAL LEFT</div>
+<div class="total-value" id="grand-total">0</div>
+</div>
+</div>
+
+<div class="action-display" id="action-display"></div>
+
+<div class="section">
+<div class="section-header">
+<h3>Kids Sizes (26-32)</h3>
+<button class="add-all-btn" onclick="addKidsItems()">Add to Cart</button>
+</div>
+<div class="kids-scroll" id="kids-scroll"></div>
+</div>
+
+<div class="section">
+<div class="section-header">
+<h3>Adults Sizes</h3>
+<button class="add-all-btn" onclick="addAdultItems()">Add to Cart</button>
+</div>
+<div class="size-row" id="adult-sizes"></div>
+</div>
+
+<div class="location-section" id="location-section">
+<h3>Select Destination Location</h3>
+<select id="location-select">
+<option value="">Select Location</option>
+<option value="Bosch">Bosch</option>
+<option value="TDK">TDK</option>
+<option value="Mathma Nagar">Mathma Nagar</option>
+</select>
+</div>
+
+<div class="reason-section" id="reason-section">
+<h3>Select Reason for Stock Out</h3>
+<select id="reason-select">
+<option value="">Select Reason</option>
+<option value="Sent to Organization">Sent to Organization</option>
+<option value="Damaged Stock">Damaged Stock</option>
+<option value="Return to Supplier">Return to Supplier</option>
+</select>
+</div>
+
+<div class="cart-items">
+<h3>🛒 Cart</h3>
+<ul id="cart-list"></ul>
+<div class="cart-summary" id="cart-summary" style="display: none;">
+Total Items: <span id="total-items">0</span>
+</div>
+</div>
+
+<button class="submit-btn" id="submit-btn" onclick="submitCart()">Submit All to Database</button>
+
+<div class="bottom-list">
+<h3>Recent Transactions</h3>
+<ul id="transaction-list"></ul>
+</div>
+</div>
+
+<script>
+const adultsSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+const kidsSizes = ['26', '28', '30', '32'];
+let currentAction = null;
+let cart = [];
+let transactionList = [];
+let currentUser = null;
+
+let autoRefreshTimer = null;
+
+const SUPABASE_URL = 'https://csbbclnqxatcpufcgykc.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNzYmJjbG5xeGF0Y3B1ZmNneWtjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU0OTEwMDUsImV4cCI6MjA4MTA2NzAwNX0.cptSdF-WoZzA0SBR5LQLCnkfDGGAo8XKTdJEcLvA_tM';
+
+const supabaseUrl = SUPABASE_URL;
+const supabaseKey = SUPABASE_ANON_KEY;
+
+const headers = {
+'apikey': supabaseKey,
+'Authorization': `Bearer ${supabaseKey}`,
+'Content-Type': 'application/json'
+};
+
+const ALLOWED_ORGANIZATION = 'Warehouse';
+
+function setModeUI(mode) {
+const actionDisplay = document.getElementById('action-display');
+const warningBanner = document.getElementById('warning-banner');
+const app = document.getElementById('main-app');
+
+// remove old mode classes
+app.classList.remove('mode-in', 'mode-out');
+
+if (!mode) {
+warningBanner.style.display = 'block';
+actionDisplay.style.display = 'none';
+return;
+}
+
+warningBanner.style.display = 'none';
+actionDisplay.style.display = 'block';
+
+if (mode === 'in') {
+app.classList.add('mode-in');
+actionDisplay.textContent = 'Mode: STOCK IN (From Supplier)';
+actionDisplay.style.backgroundColor = '#d4edda';
+document.getElementById('switch-label').textContent = 'IN';
+document.getElementById('submit-btn').textContent = 'Submit All - Stock IN';
+}
+
+if (mode === 'out') {
+app.classList.add('mode-out');
+actionDisplay.textContent = 'Mode: STOCK OUT';
+actionDisplay.style.backgroundColor = '#f8d7da';
+document.getElementById('switch-label').textContent = 'OUT';
+document.getElementById('submit-btn').textContent = 'Submit All - Stock OUT';
+}
+}
+
+async function updateWarehouseStockFromDB() {
+const resp = await fetch(`${supabaseUrl}/rest/v1/stock?organization=eq.Warehouse&select=category,quantity`, {
+method: 'GET',
+headers
+});
+const rows = await resp.json();
+
+let kidsTotal = 0, adultsTotal = 0;
+(rows || []).forEach(r => {
+if (r.category === 'kids') kidsTotal += (r.quantity || 0);
+if (r.category === 'adults') adultsTotal += (r.quantity || 0);
+});
+
+document.getElementById('total-kids').textContent = kidsTotal;
+document.getElementById('total-adults').textContent = adultsTotal;
+document.getElementById('grand-total').textContent = kidsTotal + adultsTotal;
+}
+
+async function loadRecentTransactionsFromDB() {
+const resp = await fetch(`${supabaseUrl}/rest/v1/transactions?organization=eq.Warehouse&order=created_at.desc&limit=15&select=type,category,size,quantity,reason,created_at,user_name`, {
+method: 'GET',
+headers
+});
+const rows = await resp.json();
+
+transactionList = (rows || []).map(t => {
+const r = t.reason ? ` - ${t.reason}` : '';
+return `${String(t.type || '').toUpperCase()} - ${t.category} Size ${t.size} Qty ${t.quantity}${r}`;
+});
+
+updateTransactionList();
+}
+
+async function manualRefresh() {
+await updateWarehouseStockFromDB();
+await loadRecentTransactionsFromDB();
+}
+
+function startAutoRefresh() {
+stopAutoRefresh();
+autoRefreshTimer = setInterval(() => {
+manualRefresh().catch(console.error);
+}, 10000);
+}
+function stopAutoRefresh() {
+if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+autoRefreshTimer = null;
+}
+
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+e.preventDefault();
+const username = document.getElementById('login-username').value.trim();
+const password = document.getElementById('login-password').value.trim();
+const errorMsg = document.getElementById('error-message');
+
+try {
+const response = await fetch(
+`${supabaseUrl}/rest/v1/users?select=id,username,name,organization&username=eq.${encodeURIComponent(username)}&password=eq.${encodeURIComponent(password)}&organization=eq.${encodeURIComponent(ALLOWED_ORGANIZATION)}`,
+{ method: 'GET', headers }
+);
+
+if (!response.ok) {
+const txt = await response.text();
+throw new Error(`HTTP ${response.status}: ${txt}`);
+}
+
+const users = await response.json();
+
+if (users && users.length > 0) {
+currentUser = users[0];
+
+if (currentUser.organization !== ALLOWED_ORGANIZATION) {
+errorMsg.textContent = 'Access Denied: Warehouse access only';
+errorMsg.style.display = 'block';
+return;
+}
+
+errorMsg.style.display = 'none';
+showMainApp();
+} else {
+errorMsg.textContent = 'Invalid credentials or unauthorized access';
+errorMsg.style.display = 'block';
+}
+} catch (error) {
+errorMsg.textContent = 'Login failed. Please check URL/key/RLS and try again.';
+errorMsg.style.display = 'block';
+console.error('Login error:', error);
+}
+});
+
+async function showMainApp() {
+document.getElementById('login-page').style.display = 'none';
+document.getElementById('main-app').style.display = 'block';
+document.getElementById('user-info').textContent = `${currentUser.name} (${currentUser.organization})`;
+
+// Start with NO mode selected -> show warning
+currentAction = null;
+document.getElementById('action-switch').checked = false;
+document.getElementById('location-section').style.display = 'block';
+document.getElementById('reason-section').style.display = 'block';
+setModeUI(null);
+
+await manualRefresh();
+startAutoRefresh();
+}
+
+function logout() {
+stopAutoRefresh();
+currentUser = null;
+currentAction = null;
+document.getElementById('action-switch').checked = false;
+document.getElementById('switch-label').textContent = 'OUT';
+document.getElementById('login-page').style.display = 'flex';
+document.getElementById('main-app').style.display = 'none';
+cart = [];
+updateCart();
+document.getElementById('login-username').value = '';
+document.getElementById('login-password').value = '';
+}
+
+function toggleAction() {
+const switchElement = document.getElementById('action-switch');
+const locationSection = document.getElementById('location-section');
+const reasonSection = document.getElementById('reason-section');
+
+if (switchElement.checked) {
+currentAction = 'in';
+locationSection.style.display = 'none';
+reasonSection.style.display = 'none';
+setModeUI('in');
+} else {
+currentAction = 'out';
+locationSection.style.display = 'block';
+reasonSection.style.display = 'block';
+setModeUI('out');
+}
+}
+
+function createSizeButtons(containerId, sizes, isAdult = true) {
+const container = document.getElementById(containerId);
+sizes.forEach(size => {
+const sizeItem = document.createElement('div');
+sizeItem.className = 'size-item';
+
+const btn = document.createElement('button');
+btn.className = isAdult ? 'size-btn' : 'kids-box';
+btn.dataset.size = size;
+btn.textContent = size;
+
+const input = document.createElement('input');
+input.type = 'number';
+input.className = 'qty-input';
+input.placeholder = 'Qty';
+input.min = '0';
+input.value = '0';
+input.dataset.size = size;
+input.dataset.category = isAdult ? 'adults' : 'kids';
+
+sizeItem.appendChild(btn);
+sizeItem.appendChild(input);
+container.appendChild(sizeItem);
+});
+}
+
+function addKidsItems() {
+if (!currentAction) { alert('Please select IN or OUT first.'); return; }
+
+const inputs = document.querySelectorAll('#kids-scroll .qty-input');
+let added = 0;
+
+inputs.forEach(input => {
+const quantity = parseInt(input.value) || 0;
+if (quantity > 0) {
+cart.push({ category: 'kids', size: input.dataset.size, quantity, action: currentAction });
+input.value = '0';
+added++;
+}
+});
+
+if (added === 0) { alert('Please enter quantity for at least one size.'); return; }
+
+updateCart();
+}
+
+function addAdultItems() {
+if (!currentAction) { alert('Please select IN or OUT first.'); return; }
+
+const inputs = document.querySelectorAll('#adult-sizes .qty-input');
+let added = 0;
+
+inputs.forEach(input => {
+const quantity = parseInt(input.value) || 0;
+if (quantity > 0) {
+cart.push({ category: 'adults', size: input.dataset.size, quantity, action: currentAction });
+input.value = '0';
+added++;
+}
+});
+
+if (added === 0) { alert('Please enter quantity for at least one size.'); return; }
+
+updateCart();
+}
+
+function updateCart() {
+const list = document.getElementById('cart-list');
+const summary = document.getElementById('cart-summary');
+list.innerHTML = '';
+
+if (cart.length === 0) {
+list.innerHTML = '<li style="text-align: center; color: #999;">Cart is empty</li>';
+summary.style.display = 'none';
+return;
+}
+
+summary.style.display = 'block';
+document.getElementById('total-items').textContent = cart.length;
+
+cart.forEach((item, index) => {
+const li = document.createElement('li');
+li.innerHTML = `
+<div class="cart-item-info">
+<strong>${item.action.toUpperCase()}</strong> - ${item.category.toUpperCase()}<br>
+Size: <strong>${item.size}</strong> | Qty: <strong>${item.quantity}</strong>
+</div>
+<button class="remove-item" onclick="removeFromCart(${index})">Remove</button>
+`;
+list.appendChild(li);
+});
+}
+
+function removeFromCart(index) {
+cart.splice(index, 1);
+updateCart();
+}
+
+async function submitCart() {
+if (!currentAction) { alert('Please select IN or OUT first.'); return; }
+if (cart.length === 0) { alert('Cart is empty. Please add items first.'); return; }
+
+let location = '';
+let reason = '';
+
+if (currentAction === 'out') {
+location = document.getElementById('location-select').value;
+reason = document.getElementById('reason-select').value;
+
+if (!location) { alert('Please select a destination location.'); return; }
+if (!reason) { alert('Please select a reason for stock out.'); return; }
+} else {
+reason = 'Received from Supplier';
+}
+
+for (const item of cart) {
+try {
+const warehouseCheckUrl = `${supabaseUrl}/rest/v1/stock?organization=eq.Warehouse&size=eq.${item.size}&category=eq.${item.category}`;
+const warehouseCheckResponse = await fetch(warehouseCheckUrl, { method: 'GET', headers });
+const warehouseStock = await warehouseCheckResponse.json();
+
+if (warehouseStock && warehouseStock.length > 0) {
+const currentQty = warehouseStock[0].quantity;
+const newQty = currentQty + (item.action === 'in' ? item.quantity : -item.quantity);
+
+const updateUrl = `${supabaseUrl}/rest/v1/stock?organization=eq.Warehouse&size=eq.${item.size}&category=eq.${item.category}`;
+await fetch(updateUrl, {
+method: 'PATCH',
+headers,
+body: JSON.stringify({ quantity: newQty, updated_at: new Date().toISOString() })
+});
+} else {
+const insertUrl = `${supabaseUrl}/rest/v1/stock`;
+await fetch(insertUrl, {
+method: 'POST',
+headers,
+body: JSON.stringify({
+organization: 'Warehouse',
+size: item.size,
+category: item.category,
+quantity: item.action === 'in' ? item.quantity : -item.quantity
+})
+});
+}
+
+if (item.action === 'out' && reason === 'Sent to Organization') {
+const destCheckUrl = `${supabaseUrl}/rest/v1/stock?organization=eq.${location}&size=eq.${item.size}&category=eq.${item.category}`;
+const destCheckResponse = await fetch(destCheckUrl, { method: 'GET', headers });
+const destStock = await destCheckResponse.json();
+
+if (destStock && destStock.length > 0) {
+const destCurrentQty = destStock[0].quantity;
+const destNewQty = destCurrentQty + item.quantity;
+
+const destUpdateUrl = `${supabaseUrl}/rest/v1/stock?organization=eq.${location}&size=eq.${item.size}&category=eq.${item.category}`;
+await fetch(destUpdateUrl, {
+method: 'PATCH',
+headers,
+body: JSON.stringify({ quantity: destNewQty, updated_at: new Date().toISOString() })
+});
+} else {
+const destInsertUrl = `${supabaseUrl}/rest/v1/stock`;
+await fetch(destInsertUrl, {
+method: 'POST',
+headers,
+body: JSON.stringify({ organization: location, size: item.size, category: item.category, quantity: item.quantity })
+});
+}
+
+const transUrl = `${supabaseUrl}/rest/v1/transactions`;
+await fetch(transUrl, {
+method: 'POST',
+headers,
+body: JSON.stringify({
+organization: location,
+size: item.size,
+category: item.category,
+quantity: item.quantity,
+type: 'in',
+reason: `Received from Warehouse`,
+user_name: currentUser.username
+})
+});
+}
+
+const transUrl = `${supabaseUrl}/rest/v1/transactions`;
+const finalReason = item.action === 'out'
+? `${reason}${reason === 'Sent to Organization' ? ' - ' + location : ''}`
+: reason;
+
+await fetch(transUrl, {
+method: 'POST',
+headers,
+body: JSON.stringify({
+organization: 'Warehouse',
+size: item.size,
+category: item.category,
+quantity: item.quantity,
+type: item.action,
+reason: finalReason,
+user_name: currentUser.username
+})
+});
+
+const transactionText = `${item.action.toUpperCase()} - ${item.category} Size ${item.size} Qty ${item.quantity} - ${finalReason}`;
+transactionList.unshift(transactionText);
+} catch (error) {
+console.error('Error updating database:', error);
+alert('Error updating database. Please check console.');
+return;
+}
+}
+
+updateTransactionList();
+const itemsProcessed = cart.length;
+cart = [];
+updateCart();
+document.getElementById('location-select').value = '';
+document.getElementById('reason-select').value = '';
+alert(`Successfully processed ${itemsProcessed} items!`);
+
+await manualRefresh();
+}
+
+function updateTransactionList() {
+const list = document.getElementById('transaction-list');
+list.innerHTML = '';
+transactionList.slice(0, 15).forEach(item => {
+const li = document.createElement('li');
+li.textContent = item;
+list.appendChild(li);
+});
+}
+
+createSizeButtons('adult-sizes', adultsSizes, true);
+createSizeButtons('kids-scroll', kidsSizes, false);
+</script>
+</body>
+</html>
