@@ -1,1 +1,309 @@
+-- ============================================
+-- SUPABASE SETUP (Warehouse + Bosch + TDK + Mathma Nagar)
+-- Sizes:
+--   Kids:   26, 28, 30, 32
+--   Adults: 34, 36, 38, 40, 42, 44, 46
+-- Stock rows total: 4 orgs * 11 = 44
+-- ============================================
 
+-- Drop existing tables (order matters)
+DROP TABLE IF EXISTS public.transactions CASCADE;
+DROP TABLE IF EXISTS public.stock CASCADE;
+DROP TABLE IF EXISTS public.users CASCADE;
+
+-- =========================
+-- USERS TABLE (simple login)
+-- =========================
+CREATE TABLE public.users (
+  id BIGSERIAL PRIMARY KEY,
+  username TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL,
+  name TEXT NOT NULL,
+  organization TEXT NOT NULL DEFAULT 'Warehouse',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =========================
+-- STOCK TABLE (inventory)
+-- =========================
+CREATE TABLE public.stock (
+  id BIGSERIAL PRIMARY KEY,
+  organization TEXT NOT NULL,
+  size TEXT NOT NULL,
+  category TEXT NOT NULL,
+  quantity INTEGER NOT NULL DEFAULT 0 CHECK (quantity >= 0),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (organization, size, category)
+);
+
+-- Enforce valid size-category combos
+ALTER TABLE public.stock
+ADD CONSTRAINT stock_size_category_check
+CHECK (
+  (category = 'kids' AND size IN ('26','28','30','32'))
+  OR
+  (category = 'adults' AND size IN ('34','36','38','40','42','44','46'))
+);
+
+-- =========================
+-- TRANSACTIONS TABLE (audit)
+-- =========================
+CREATE TABLE public.transactions (
+  id BIGSERIAL PRIMARY KEY,
+  organization TEXT NOT NULL,
+  category TEXT NOT NULL,
+  size TEXT NOT NULL,
+  quantity INTEGER NOT NULL CHECK (quantity >= 0),
+  type TEXT NOT NULL CHECK (type IN ('in', 'out')),
+  reason TEXT,
+  user_name TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============
+-- ENABLE RLS
+-- ============
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;        -- Supabase/Postgres RLS enable syntax [web:1]
+ALTER TABLE public.stock ENABLE ROW LEVEL SECURITY;        -- Supabase/Postgres RLS enable syntax [web:1]
+ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY; -- Supabase/Postgres RLS enable syntax [web:1]
+
+-- ==================================================
+-- RLS POLICIES - FULL anon ACCESS (matches your app)
+-- ==================================================
+DROP POLICY IF EXISTS "Anon read users" ON public.users;
+DROP POLICY IF EXISTS "Anon full stock" ON public.stock;
+DROP POLICY IF EXISTS "Anon full transactions" ON public.transactions;
+
+CREATE POLICY "Anon read users"
+ON public.users
+FOR SELECT
+TO anon
+USING (true);
+
+CREATE POLICY "Anon full stock"
+ON public.stock
+FOR ALL
+TO anon
+USING (true)
+WITH CHECK (true);
+
+CREATE POLICY "Anon full transactions"
+ON public.transactions
+FOR ALL
+TO anon
+USING (true)
+WITH CHECK (true);
+
+-- Also ensure anon can use public schema (avoids "permission denied for schema public") [web:35]
+GRANT USAGE ON SCHEMA public TO anon;
+
+-- ===============
+-- SAMPLE USERS
+-- ===============
+INSERT INTO public.users (username, password, name, organization) VALUES
+  ('warehouse', 'warehouse123', 'Warehouse Manager', 'Warehouse'),
+  ('bosch',     'pass123',      'Bosch Manager',     'Bosch'),
+  ('tdk',       'pass123',      'TDK Manager',       'TDK'),
+  ('mathma',    'pass123',      'Mathma Nagar Manager', 'Mathma Nagar')
+ON CONFLICT (username) DO UPDATE
+SET password = EXCLUDED.password,
+    name = EXCLUDED.name,
+    organization = EXCLUDED.organization;
+
+-- ============================================
+-- PRE-CREATE STOCK ROWS (ordered inserts)
+-- ============================================
+
+-- WAREHOUSE
+INSERT INTO public.stock (organization, size, category, quantity) VALUES
+('Warehouse', '26', 'kids',  8),
+('Warehouse', '28', 'kids', 12),
+('Warehouse', '30', 'kids', 15),
+('Warehouse', '32', 'kids', 10),
+
+('Warehouse', '34', 'adults', 10),
+('Warehouse', '36', 'adults', 15),
+('Warehouse', '38', 'adults', 20),
+('Warehouse', '40', 'adults', 25),
+('Warehouse', '42', 'adults', 20),
+('Warehouse', '44', 'adults', 10),
+('Warehouse', '46', 'adults',  5)
+ON CONFLICT (organization, size, category) DO UPDATE
+SET quantity = EXCLUDED.quantity,
+    updated_at = now();
+
+-- BOSCH
+INSERT INTO public.stock (organization, size, category, quantity) VALUES
+('Bosch', '26', 'kids', 0), ('Bosch', '28', 'kids', 0), ('Bosch', '30', 'kids', 0), ('Bosch', '32', 'kids', 0),
+('Bosch', '34', 'adults', 0), ('Bosch', '36', 'adults', 0), ('Bosch', '38', 'adults', 0), ('Bosch', '40', 'adults', 0),
+('Bosch', '42', 'adults', 0), ('Bosch', '44', 'adults', 0), ('Bosch', '46', 'adults', 0)
+ON CONFLICT (organization, size, category) DO NOTHING;
+
+-- TDK
+INSERT INTO public.stock (organization, size, category, quantity) VALUES
+('TDK', '26', 'kids', 0), ('TDK', '28', 'kids', 0), ('TDK', '30', 'kids', 0), ('TDK', '32', 'kids', 0),
+('TDK', '34', 'adults', 0), ('TDK', '36', 'adults', 0), ('TDK', '38', 'adults', 0), ('TDK', '40', 'adults', 0),
+('TDK', '42', 'adults', 0), ('TDK', '44', 'adults', 0), ('TDK', '46', 'adults', 0)
+ON CONFLICT (organization, size, category) DO NOTHING;
+
+-- MATHMA NAGAR
+INSERT INTO public.stock (organization, size, category, quantity) VALUES
+('Mathma Nagar', '26', 'kids', 0), ('Mathma Nagar', '28', 'kids', 0), ('Mathma Nagar', '30', 'kids', 0), ('Mathma Nagar', '32', 'kids', 0),
+('Mathma Nagar', '34', 'adults', 0), ('Mathma Nagar', '36', 'adults', 0), ('Mathma Nagar', '38', 'adults', 0), ('Mathma Nagar', '40', 'adults', 0),
+('Mathma Nagar', '42', 'adults', 0), ('Mathma Nagar', '44', 'adults', 0), ('Mathma Nagar', '46', 'adults', 0)
+ON CONFLICT (organization, size, category) DO NOTHING;
+
+-- =====================================================
+-- RPC 1: upsert_warehouse_stock
+-- =====================================================
+CREATE OR REPLACE FUNCTION public.upsert_warehouse_stock(
+  p_organization text,
+  p_category text,
+  p_size text,
+  p_quantity integer,
+  p_type text,
+  p_user_name text,
+  p_reason text DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+DECLARE
+  v_current_qty integer;
+  v_new_qty integer;
+BEGIN
+  IF p_type NOT IN ('in','out') THEN
+    RAISE EXCEPTION 'Invalid type: %', p_type;
+  END IF;
+
+  IF p_organization IS NULL OR p_organization = '' THEN
+    RAISE EXCEPTION 'organization required';
+  END IF;
+
+  IF p_category IS NULL OR p_category = '' THEN
+    RAISE EXCEPTION 'category required';
+  END IF;
+
+  IF p_size IS NULL OR p_size = '' THEN
+    RAISE EXCEPTION 'size required';
+  END IF;
+
+  IF p_quantity IS NULL OR p_quantity = 0 THEN
+    RAISE EXCEPTION 'quantity cannot be 0';
+  END IF;
+
+  INSERT INTO public.stock (organization, category, size, quantity)
+  VALUES (p_organization, p_category, p_size, 0)
+  ON CONFLICT (organization, size, category) DO NOTHING;
+
+  SELECT quantity
+    INTO v_current_qty
+  FROM public.stock
+  WHERE organization = p_organization
+    AND category = p_category
+    AND size = p_size
+  FOR UPDATE;
+
+  v_new_qty := v_current_qty + p_quantity;
+
+  IF v_new_qty < 0 THEN
+    RAISE EXCEPTION 'Insufficient stock in % (have %, change %)', p_organization, v_current_qty, p_quantity;
+  END IF;
+
+  UPDATE public.stock
+  SET quantity = v_new_qty,
+      updated_at = now()
+  WHERE organization = p_organization
+    AND category = p_category
+    AND size = p_size;
+
+  INSERT INTO public.transactions (organization, category, size, quantity, type, reason, user_name)
+  VALUES (p_organization, p_category, p_size, ABS(p_quantity), p_type, p_reason, p_user_name);
+END;
+$$;
+
+-- =====================================================
+-- RPC 2: move_stock_warehouse_to_org
+-- =====================================================
+CREATE OR REPLACE FUNCTION public.move_stock_warehouse_to_org(
+  p_from_org text,
+  p_to_org   text,
+  p_category text,
+  p_size     text,
+  p_quantity integer,
+  p_user_name text,
+  p_reason text DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+DECLARE
+  v_from_qty integer;
+BEGIN
+  IF p_quantity IS NULL OR p_quantity <= 0 THEN
+    RAISE EXCEPTION 'Quantity must be > 0';
+  END IF;
+
+  IF p_from_org IS NULL OR p_from_org = '' THEN
+    RAISE EXCEPTION 'from_org required';
+  END IF;
+
+  IF p_to_org IS NULL OR p_to_org = '' THEN
+    RAISE EXCEPTION 'to_org required';
+  END IF;
+
+  IF p_from_org = p_to_org THEN
+    RAISE EXCEPTION 'from_org and to_org cannot be same';
+  END IF;
+
+  SELECT quantity
+    INTO v_from_qty
+  FROM public.stock
+  WHERE organization = p_from_org
+    AND category = p_category
+    AND size = p_size
+  FOR UPDATE;
+
+  IF v_from_qty IS NULL THEN
+    RAISE EXCEPTION 'Stock row not found in from_org=%', p_from_org;
+  END IF;
+
+  IF v_from_qty < p_quantity THEN
+    RAISE EXCEPTION 'Insufficient stock in % (have %, need %)', p_from_org, v_from_qty, p_quantity;
+  END IF;
+
+  INSERT INTO public.stock (organization, category, size, quantity)
+  VALUES (p_to_org, p_category, p_size, 0)
+  ON CONFLICT (organization, size, category) DO NOTHING;
+
+  UPDATE public.stock
+  SET quantity = quantity - p_quantity,
+      updated_at = now()
+  WHERE organization = p_from_org
+    AND category = p_category
+    AND size = p_size;
+
+  UPDATE public.stock
+  SET quantity = quantity + p_quantity,
+      updated_at = now()
+  WHERE organization = p_to_org
+    AND category = p_category
+    AND size = p_size;
+
+  INSERT INTO public.transactions (organization, category, size, quantity, type, reason, user_name)
+  VALUES (p_from_org, p_category, p_size, p_quantity, 'out', p_reason, p_user_name);
+
+  INSERT INTO public.transactions (organization, category, size, quantity, type, reason, user_name)
+  VALUES (p_to_org, p_category, p_size, p_quantity, 'in', p_reason, p_user_name);
+END;
+$$;
+
+-- Allow anon frontend to call RPCs
+GRANT EXECUTE ON FUNCTION public.upsert_warehouse_stock(text, text, text, integer, text, text, text) TO anon;
+GRANT EXECUTE ON FUNCTION public.move_stock_warehouse_to_org(text, text, text, text, integer, text, text) TO anon;
+
+-- If you ever get "function not found in schema cache", reload PostgREST schema cache. [web:215]
+NOTIFY pgrst, 'reload schema';
