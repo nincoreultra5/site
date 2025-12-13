@@ -64,9 +64,9 @@ CREATE TABLE public.transactions (
 -- ============
 -- ENABLE RLS
 -- ============
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;        -- Supabase/Postgres RLS enable syntax [web:1]
-ALTER TABLE public.stock ENABLE ROW LEVEL SECURITY;        -- Supabase/Postgres RLS enable syntax [web:1]
-ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY; -- Supabase/Postgres RLS enable syntax [web:1]
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stock ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 
 -- ==================================================
 -- RLS POLICIES - FULL anon ACCESS (matches your app)
@@ -95,8 +95,20 @@ TO anon
 USING (true)
 WITH CHECK (true);
 
--- Also ensure anon can use public schema (avoids "permission denied for schema public") [web:35]
+-- ==================================================
+-- IMPORTANT: GRANTS (RLS alone is not enough)
+-- ==================================================
 GRANT USAGE ON SCHEMA public TO anon;
+
+-- allow anon to read/write tables via PostgREST
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon;
+
+-- allow anon to use BIGSERIAL sequences (needed for inserts)
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon;
+
+-- optional: future-proof (new tables/sequences)
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon;
 
 -- ===============
 -- SAMPLE USERS
@@ -121,7 +133,6 @@ INSERT INTO public.stock (organization, size, category, quantity) VALUES
 ('Warehouse', '28', 'kids', 12),
 ('Warehouse', '30', 'kids', 15),
 ('Warehouse', '32', 'kids', 10),
-
 ('Warehouse', '34', 'adults', 10),
 ('Warehouse', '36', 'adults', 15),
 ('Warehouse', '38', 'adults', 20),
@@ -156,6 +167,10 @@ ON CONFLICT (organization, size, category) DO NOTHING;
 
 -- =====================================================
 -- RPC 1: upsert_warehouse_stock
+--   Robust rule:
+--     type='in'  => stock increases by ABS(p_quantity)
+--     type='out' => stock decreases by ABS(p_quantity)
+--   So frontend can send +qty or -qty; DB will still behave correctly.
 -- =====================================================
 CREATE OR REPLACE FUNCTION public.upsert_warehouse_stock(
   p_organization text,
@@ -173,20 +188,21 @@ AS $$
 DECLARE
   v_current_qty integer;
   v_new_qty integer;
+  v_delta integer;
 BEGIN
   IF p_type NOT IN ('in','out') THEN
     RAISE EXCEPTION 'Invalid type: %', p_type;
   END IF;
 
-  IF p_organization IS NULL OR p_organization = '' THEN
+  IF p_organization IS NULL OR btrim(p_organization) = '' THEN
     RAISE EXCEPTION 'organization required';
   END IF;
 
-  IF p_category IS NULL OR p_category = '' THEN
+  IF p_category IS NULL OR btrim(p_category) = '' THEN
     RAISE EXCEPTION 'category required';
   END IF;
 
-  IF p_size IS NULL OR p_size = '' THEN
+  IF p_size IS NULL OR btrim(p_size) = '' THEN
     RAISE EXCEPTION 'size required';
   END IF;
 
@@ -194,10 +210,19 @@ BEGIN
     RAISE EXCEPTION 'quantity cannot be 0';
   END IF;
 
+  -- force correct sign from p_type
+  IF p_type = 'in' THEN
+    v_delta := abs(p_quantity);
+  ELSE
+    v_delta := -abs(p_quantity);
+  END IF;
+
+  -- Ensure stock row exists
   INSERT INTO public.stock (organization, category, size, quantity)
   VALUES (p_organization, p_category, p_size, 0)
   ON CONFLICT (organization, size, category) DO NOTHING;
 
+  -- Lock row
   SELECT quantity
     INTO v_current_qty
   FROM public.stock
@@ -206,10 +231,10 @@ BEGIN
     AND size = p_size
   FOR UPDATE;
 
-  v_new_qty := v_current_qty + p_quantity;
+  v_new_qty := v_current_qty + v_delta;
 
   IF v_new_qty < 0 THEN
-    RAISE EXCEPTION 'Insufficient stock in % (have %, change %)', p_organization, v_current_qty, p_quantity;
+    RAISE EXCEPTION 'Insufficient stock in % (have %, change %)', p_organization, v_current_qty, v_delta;
   END IF;
 
   UPDATE public.stock
@@ -220,12 +245,13 @@ BEGIN
     AND size = p_size;
 
   INSERT INTO public.transactions (organization, category, size, quantity, type, reason, user_name)
-  VALUES (p_organization, p_category, p_size, ABS(p_quantity), p_type, p_reason, p_user_name);
+  VALUES (p_organization, p_category, p_size, abs(v_delta), p_type, p_reason, p_user_name);
 END;
 $$;
 
 -- =====================================================
 -- RPC 2: move_stock_warehouse_to_org
+--   Moves stock between two organizations (hub transfer)
 -- =====================================================
 CREATE OR REPLACE FUNCTION public.move_stock_warehouse_to_org(
   p_from_org text,
@@ -247,11 +273,11 @@ BEGIN
     RAISE EXCEPTION 'Quantity must be > 0';
   END IF;
 
-  IF p_from_org IS NULL OR p_from_org = '' THEN
+  IF p_from_org IS NULL OR btrim(p_from_org) = '' THEN
     RAISE EXCEPTION 'from_org required';
   END IF;
 
-  IF p_to_org IS NULL OR p_to_org = '' THEN
+  IF p_to_org IS NULL OR btrim(p_to_org) = '' THEN
     RAISE EXCEPTION 'to_org required';
   END IF;
 
@@ -259,6 +285,7 @@ BEGIN
     RAISE EXCEPTION 'from_org and to_org cannot be same';
   END IF;
 
+  -- Lock from row
   SELECT quantity
     INTO v_from_qty
   FROM public.stock
@@ -275,10 +302,12 @@ BEGIN
     RAISE EXCEPTION 'Insufficient stock in % (have %, need %)', p_from_org, v_from_qty, p_quantity;
   END IF;
 
+  -- Ensure to row exists
   INSERT INTO public.stock (organization, category, size, quantity)
   VALUES (p_to_org, p_category, p_size, 0)
   ON CONFLICT (organization, size, category) DO NOTHING;
 
+  -- Update both sides
   UPDATE public.stock
   SET quantity = quantity - p_quantity,
       updated_at = now()
@@ -293,6 +322,7 @@ BEGIN
     AND category = p_category
     AND size = p_size;
 
+  -- Audit trail
   INSERT INTO public.transactions (organization, category, size, quantity, type, reason, user_name)
   VALUES (p_from_org, p_category, p_size, p_quantity, 'out', p_reason, p_user_name);
 
@@ -305,5 +335,5 @@ $$;
 GRANT EXECUTE ON FUNCTION public.upsert_warehouse_stock(text, text, text, integer, text, text, text) TO anon;
 GRANT EXECUTE ON FUNCTION public.move_stock_warehouse_to_org(text, text, text, text, integer, text, text) TO anon;
 
--- If you ever get "function not found in schema cache", reload PostgREST schema cache. [web:215]
+-- Reload PostgREST schema cache (if needed)
 NOTIFY pgrst, 'reload schema';
